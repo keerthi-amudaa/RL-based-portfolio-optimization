@@ -58,29 +58,33 @@ class PortfolioEnv(gym.Env):
         return obs.astype(np.float32)
 
     def step(self, action):
+        action = np.clip(action, 0, 1)
         weights = action / (np.sum(action) + 1e-8)
-
+    
         port_ret = np.dot(self.returns[self.t], weights)
         self.nav *= (1 + port_ret)
         self.max_nav = max(self.max_nav, self.nav)
-
-        drawdown = (self.nav - self.max_nav) / self.max_nav
+    
+        drawdown = (self.max_nav - self.nav) / self.max_nav
         turnover = np.sum((weights - self.prev_weights) ** 2)
-
-        # 🔑 SHARPE-ALIGNED REWARD
+    
+        # ✅ portfolio sharpe
         recent = self.returns[self.t - self.window : self.t]
-        mean_ret = recent.mean()
-        std_ret = recent.std() + 1e-8
+        port_recent = recent @ weights
+    
+        mean_ret = port_recent.mean()
+        std_ret = port_recent.std() + 1e-8
         sharpe_t = mean_ret / std_ret
-
+    
         reward = (
             sharpe_t
-            - self.lambda_dd * abs(drawdown)
+            - self.lambda_dd * drawdown
             - self.lambda_tc * turnover
         )
-
+    
         self.prev_weights = weights
         self.t += 1
         done = self.t >= len(self.returns) - 1
-
+    
         return self._get_obs(), reward, done, False, {}
+
