@@ -1,0 +1,5 @@
+finance/
+.env/
+__pycache__/
+*.pyc
+ppo_portfolio_agent.zip/
